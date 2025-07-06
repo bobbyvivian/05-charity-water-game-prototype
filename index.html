@@ -1,13 +1,602 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Charity Water Game</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pipeline Puzzle – charity: water</title>
+  <style>
+    body {
+  font-family: sans-serif;
+  background: #fef6e4;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 100vh;
+}
+
+    .grid {
+  display: grid;
+  grid-template-columns: repeat(10, 40px);
+  grid-template-rows: repeat(10, 40px);
+  gap: 2px;
+  background: white;
+  border: 2px solid #ccc;
+}
+
+    .cell {
+      width: 40px;
+      height: 40px;
+      background: #fff;
+      border: 1px solid #ddd;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    .pipe {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      position: relative;
+    }
+
+    .pipe-inventory {
+      width: 40px;
+      height: 40px;
+      background: #f0f0f0;
+      border: 1px solid #ccc;
+      position: relative;
+      cursor: grab;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .pipe-inventory.dragging {
+      opacity: 0.5;
+    }
+
+    .inventory {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin: 1rem auto;
+      max-width: 420px;
+    }
+
+    .pipe.straight-horizontal::before,
+    .pipe-inventory.straight-horizontal::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 10px;
+      background: #444;
+      transform: translateY(-50%);
+    }
+
+    .pipe.straight-vertical::before,
+    .pipe-inventory.straight-vertical::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 10px;
+      background: #444;
+      transform: translateX(-50%);
+    }
+
+    .pipe.corner-tl::before,
+    .pipe-inventory.corner-tl::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 10px;
+      height: 50%;
+      background: #444;
+      transform: translateX(-50%);
+    }
+
+    .pipe.corner-tl::after,
+    .pipe-inventory.corner-tl::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 50%;
+      height: 10px;
+      background: #444;
+    }
+
+    .pipe.corner-tr::before,
+    .pipe-inventory.corner-tr::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 10px;
+      height: 50%;
+      background: #444;
+      transform: translateX(-50%);
+    }
+
+    .pipe.corner-tr::after,
+    .pipe-inventory.corner-tr::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      right: 0;
+      width: 50%;
+      height: 10px;
+      background: #444;
+    }
+
+    .pipe.corner-bl::before,
+    .pipe-inventory.corner-bl::before {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      width: 10px;
+      height: 50%;
+      background: #444;
+      transform: translateX(-50%);
+    }
+
+    .pipe.corner-bl::after,
+    .pipe-inventory.corner-bl::after {
+      content: "";
+      position: absolute;
+      bottom: 50%;
+      left: 0;
+      width: 50%;
+      height: 10px;
+      background: #444;
+    }
+
+    .pipe.corner-br::before,
+    .pipe-inventory.corner-br::before {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      width: 10px;
+      height: 50%;
+      background: #444;
+      transform: translateX(-50%);
+    }
+
+    .pipe.corner-br::after,
+    .pipe-inventory.corner-br::after {
+      content: "";
+      position: absolute;
+      bottom: 50%;
+      right: 0;
+      width: 50%;
+      height: 10px;
+      background: #444;
+    }
+
+    .pipe.cross::before,
+    .pipe-inventory.cross::before,
+    .pipe.cross::after,
+    .pipe-inventory.cross::after {
+      content: "";
+      position: absolute;
+      background: #444;
+    }
+
+    .pipe.cross::before,
+    .pipe-inventory.cross::before {
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 10px;
+      transform: translateX(-50%);
+    }
+
+    .pipe.cross::after,
+    .pipe-inventory.cross::after {
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 10px;
+      transform: translateY(-50%);
+    }
+
+    .pipe.start-pipe::after {
+      content: "S";
+      color: black;
+      font-weight: bold;
+      position: absolute;
+      top: 2px;
+      left: 4px;
+      font-size: 14px;
+    }
+
+    .pipe.end-pipe::after {
+      content: "E";
+      color: black;
+      font-weight: bold;
+      position: absolute;
+      bottom: 2px;
+      right: 4px;
+      font-size: 14px;
+    }
+
+    .success {
+      background-color: lightblue !important;
+    }
+
+    .scoreboard {
+      margin-top: 1rem;
+    }
+
+    .footer {
+      margin: 1rem;
+    }
+
+    .confetti {
+      position: fixed;
+      top: -20px;
+      /* Start above the screen */
+      z-index: 9999;
+      border-radius: 50%;
+      opacity: 0.8;
+      pointer-events: none;
+      animation: confetti-fall 3s linear forwards;
+    }
+
+    @keyframes confetti-fall {
+      to {
+        top: 100vh;
+        transform: rotate(360deg);
+        opacity: 0.5;
+      }
+    }
+
+        /* Make all buttons look prettier */
+    button {
+      background-color: #00bfff; /* Bright blue */
+      color: #fff;               /* White text */
+      border: none;              /* No border */
+      border-radius: 8px;        /* Rounded corners */
+      padding: 10px 24px;        /* Space inside button */
+      font-size: 1rem;           /* Bigger text */
+      font-weight: bold;         /* Bold text */
+      cursor: pointer;           /* Pointer on hover */
+      margin: 0.5rem;            /* Space between buttons */
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08); /* Soft shadow */
+      transition: background 0.2s, transform 0.2s;
+    }
+
+    button:hover, button:focus {
+      background-color: #0099cc; /* Slightly darker blue on hover */
+      transform: translateY(-2px) scale(1.04); /* Slight lift effect */
+      outline: none;
+    }
+
+    /* New styles for side graphics */
+    .side-graphic {
+      position: fixed;
+      top: 0;
+      width: 50px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      color: rgba(0, 0, 0, 0.3);
+      pointer-events: none;
+    }
+
+    .left-graphic {
+      left: 0;
+    }
+
+    .right-graphic {
+      right: 0;
+    }
+
+    /* Responsive styles for mobile */
+@media (max-width: 600px) {
+  body {
+    font-size: 1.1rem;
+    padding: 0;
+  }
+
+  .grid {
+    grid-template-columns: repeat(10, minmax(20px, 1fr));
+    grid-template-rows: repeat(10, minmax(20px, 1fr));
+    width: 98vw;
+    max-width: 98vw;
+    height: auto;
+    background: white;
+    border: 2px solid #ccc;
+  }
+
+  .cell, .pipe-inventory {
+    width: 8vw;
+    height: 8vw;
+    min-width: 20px;
+    min-height: 20px;
+    max-width: 40px;
+    max-height: 40px;
+  }
+
+  .inventory {
+    max-width: 98vw;
+    gap: 4px;
+  }
+
+  .scoreboard h2 {
+    font-size: 1.1rem;
+  }
+
+  button {
+    font-size: 1.1rem;
+    padding: 12px 18px;
+  }
+
+  .side-graphic {
+    font-size: 1.3rem;
+    width: 30px;
+  }
+}
+  </style>
 </head>
 <body>
-    <h1>Welcome to the Charity Water Game Prototype</h1>
-    <script src="script.js"></script>
+  <!-- Cute graphics on the left and right sides -->
+  <div class="side-graphic left-graphic">
+    💧<br>💙<br>💧<br>💛<br>💧
+  </div>
+  <div class="side-graphic right-graphic">
+    💧<br>💚<br>💧<br>❤️<br>💧
+  </div>
+
+<div id="startScreen">
+  <h1 style="font-size:2.2rem; margin-bottom:0.5rem;">💧 charity: water 💧</h1>
+  <p style="max-width: 340px; margin: 0 auto 1.2rem; font-size:1.1rem;">
+    Help build a pipeline to deliver clean water to communities in need.<br>
+    Every connection brings hope and health! <span style="font-size:1.3em;">❤️</span>
+  </p>
+  <button onclick="startGame()">Start Building!</button>
+</div>
+
+<div id="gameContainer" style="display:none;">
+  <div class="scoreboard">
+    <h2>Score: <span id="score">0</span> | Time: <span id="timer">60</span>s</h2>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="inventory" id="inventory"></div>
+  <div class="footer">
+    <button onclick="restartGame()">Restart</button>
+    <button onclick="location.reload()">Back to Main Menu</button>
+  </div>
+</div>
+
+<div id="gameOverScreen" style="display:none;">
+  <h1>Game Over</h1>
+  <p id="finalScore"></p>
+  <p>Thanks for helping bring water to communities in need.</p>
+  <button onclick="restartGame()">Play Again</button>
+</div>
+
+<script>
+const pipeTypes = [
+  { type: "straight-horizontal", directions: [[0, -1], [0, 1]] },
+  { type: "straight-vertical", directions: [[-1, 0], [1, 0]] },
+  { type: "corner-tl", directions: [[1, 0], [0, 1]] },
+  { type: "corner-tr", directions: [[1, 0], [0, -1]] },
+  { type: "corner-bl", directions: [[-1, 0], [0, 1]] },
+  { type: "corner-br", directions: [[-1, 0], [0, -1]] },
+  { type: "cross", directions: [[-1, 0], [1, 0], [0, -1], [0, 1]] }
+];
+
+const startPipeType = { type: "start-pipe", directions: [[-1, 0], [1, 0], [0, -1], [0, 1]] };
+const endPipeType = { type: "end-pipe", directions: [[-1, 0], [1, 0], [0, -1], [0, 1]] };
+
+let score = 0;
+let timeLeft = 60;
+let gameRunning = false;
+let checkInterval;
+const startPos = [0, 0];
+const endPos = [9, 9];
+
+const grid = document.getElementById("grid");
+const inventory = document.getElementById("inventory");
+const scoreDisplay = document.getElementById("score");
+const timerDisplay = document.getElementById("timer");
+const finalScore = document.getElementById("finalScore");
+const gameOverScreen = document.getElementById("gameOverScreen");
+
+function createPipeInventory(type) {
+  const div = document.createElement("div");
+  div.className = `pipe-inventory ${type}`;
+  div.setAttribute("draggable", "true");
+  div.setAttribute("data-type", type);
+  div.addEventListener("dragstart", () => div.classList.add("dragging"));
+  div.addEventListener("dragend", () => div.classList.remove("dragging"));
+  return div;
+}
+
+function createPipe(type) {
+  const div = document.createElement("div");
+  div.className = `pipe ${type}`;
+  div.setAttribute("data-type", type);
+  return div;
+}
+
+function generateInventory() {
+  inventory.innerHTML = "";
+  for (let i = 0; i < 40; i++) {
+    const random = pipeTypes[Math.floor(Math.random() * pipeTypes.length)];
+    inventory.appendChild(createPipeInventory(random.type));
+  }
+}
+
+function getCell(r, c) {
+  return grid.querySelector(`[data-row='${r}'][data-col='${c}']`);
+}
+
+function createGrid() {
+  grid.innerHTML = "";
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 10; c++) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+      cell.addEventListener("dragover", e => gameRunning && e.preventDefault());
+      cell.addEventListener("drop", e => {
+        if (!gameRunning) return;
+        const dragging = document.querySelector(".dragging");
+        if (!dragging || cell.querySelector(".pipe")) return;
+        const type = dragging.getAttribute("data-type");
+        const pipe = createPipe(type);
+        cell.appendChild(pipe);
+        dragging.remove();
+        score++;
+        scoreDisplay.textContent = score;
+      });
+      grid.appendChild(cell);
+    }
+  }
+  getCell(...startPos).appendChild(createPipe("start-pipe"));
+  getCell(...endPos).appendChild(createPipe("end-pipe"));
+}
+
+function getPipeDirections(type) {
+  if (type === "start-pipe") return startPipeType.directions;
+  if (type === "end-pipe") return endPipeType.directions;
+  const pipe = pipeTypes.find(p => p.type === type);
+  return pipe ? pipe.directions : [];
+}
+
+function checkPipes() {
+  const visited = Array.from({ length: 10 }, () => Array(10).fill(false));
+  const queue = [startPos];
+  visited[startPos[0]][startPos[1]] = true;
+
+  while (queue.length) {
+    const [r, c] = queue.shift();
+    if (r === endPos[0] && c === endPos[1]) {
+  if (!getCell(r, c).classList.contains("success")) {
+    score += 10;
+    scoreDisplay.textContent = score;
+  }
+  getCell(r, c).classList.add("success");
+  return;
+}
+    const cell = getCell(r, c);
+    const pipe = cell.querySelector(".pipe");
+    if (!pipe) continue;
+    const directions = getPipeDirections(pipe.dataset.type);
+
+    for (const [dr, dc] of directions) {
+      const nr = r + dr, nc = c + dc;
+      if (nr >= 0 && nr < 10 && nc >= 0 && nc < 10 && !visited[nr][nc]) {
+        const next = getCell(nr, nc);
+        const nextPipe = next.querySelector(".pipe");
+        if (!nextPipe) continue;
+        const nextDirs = getPipeDirections(nextPipe.dataset.type);
+        if (nextDirs.some(([ndr, ndc]) => nr + ndr === r && nc + ndc === c)) {
+          visited[nr][nc] = true;
+          queue.push([nr, nc]);
+        }
+      }
+    }
+  }
+}
+
+function startGame() {
+  document.getElementById("startScreen").style.display = "none";
+  document.getElementById("gameContainer").style.display = "block";
+  gameRunning = true;
+  score = 0;
+  timeLeft = 60;
+  scoreDisplay.textContent = score;
+  timerDisplay.textContent = timeLeft;
+  createGrid();
+  generateInventory();
+  checkInterval = setInterval(() => {
+    if (--timeLeft <= 0) {
+      endGame();
+    } else {
+      timerDisplay.textContent = timeLeft;
+      checkPipes();
+    }
+  }, 1000);
+}
+
+function restartGame() {
+  clearInterval(checkInterval);
+  gameRunning = true;
+  score = 0;
+  timeLeft = 60;
+  scoreDisplay.textContent = score;
+  timerDisplay.textContent = timeLeft;
+  document.getElementById("gameOverScreen").style.display = "none";
+  document.getElementById("gameContainer").style.display = "block";
+  createGrid();
+  generateInventory();
+  checkInterval = setInterval(() => {
+    if (--timeLeft <= 0) {
+      endGame();
+    } else {
+      timerDisplay.textContent = timeLeft;
+      checkPipes();
+    }
+  }, 1000);
+}
+
+function endGame() {
+  clearInterval(checkInterval);
+  gameRunning = false;
+  document.getElementById("gameContainer").style.display = "none";
+  gameOverScreen.style.display = "block";
+  finalScore.textContent = `Final Score: ${score}`;
+  showConfetti(); // Show confetti when game ends
+}
+
+// This function creates simple confetti using colored divs
+function showConfetti() {
+  // Create 50 confetti pieces
+  for (let i = 0; i < 50; i++) {
+    // Create a div for each confetti piece
+    const confetti = document.createElement('div');
+    // Give it a class for styling
+    confetti.className = 'confetti';
+    // Random horizontal position (0% to 100%)
+    confetti.style.left = `${Math.random() * 100}%`;
+    // Random color
+    const colors = ['#FFD700', '#FF69B4', '#00BFFF', '#32CD32', '#FF8C00'];
+    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    // Random size
+    const size = Math.random() * 8 + 8; // 8px to 16px
+    confetti.style.width = `${size}px`;
+    confetti.style.height = `${size}px`;
+    // Random delay for falling
+    confetti.style.animationDelay = `${Math.random()}s`;
+    // Add to the body
+    document.body.appendChild(confetti);
+
+    // Remove confetti after animation ends (3 seconds)
+    setTimeout(() => {
+      confetti.remove();
+    }, 3000);
+  }
+}
+</script>
 </body>
 </html>
